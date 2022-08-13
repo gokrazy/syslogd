@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/renameio/v2"
@@ -20,6 +21,22 @@ import (
 )
 
 const basenameFormat = "2006-01-02.log"
+
+// logRateLimited throttles printing error message. This is particularly
+// important when the gokr-syslogd output itself is sent to gokr-syslogd, which
+// could cause infinite log message loops without rate limiting.
+//
+// When the value is 0, a log message can be printed. A background goroutine
+// resets the value to 0 once a second.
+var logRateLimited uint32
+
+func init() {
+	go func() {
+		for range time.Tick(1 * time.Second) {
+			atomic.StoreUint32(&logRateLimited, 0)
+		}
+	}()
+}
 
 type fileKey struct {
 	hostname string
@@ -124,6 +141,9 @@ func compressFile(fn string) error {
 func (s *server) compressOldLogs() error {
 	cold, err := s.coldLogFileNames(time.Now())
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // no log files written yet
+		}
 		return err
 	}
 	for _, fn := range cold {
@@ -231,8 +251,9 @@ func gokrsyslogd() error {
 			// Reject too old timestamps to avoid tampering and to make it safe
 			// to compress/rotate old files.
 			if time.Since(timestamp) > 24*time.Hour {
-				// TODO: rate limit this error message
-				log.Printf("dropping message with timestamp with too large clock drift: timestamp %v", timestamp)
+				if atomic.SwapUint32(&logRateLimited, 1) == 0 {
+					log.Printf("dropping message with timestamp with too large clock drift: timestamp %v", timestamp)
+				}
 				continue
 			}
 
@@ -245,8 +266,9 @@ func gokrsyslogd() error {
 			if !ok {
 				f, err := srv.openFile(key)
 				if err != nil {
-					// TODO: rate limit this error message
-					log.Printf("error opening log file: %v", err)
+					if atomic.SwapUint32(&logRateLimited, 1) == 0 {
+						log.Printf("error opening log file: %v", err)
+					}
 					continue
 				}
 				of = &openFile{
@@ -270,8 +292,9 @@ func gokrsyslogd() error {
 					log.Printf("closing unused log file for key=%v", key)
 					// close old log file
 					if err := of.f.Close(); err != nil {
-						// TODO: rate limit this error message
-						log.Printf("error opening log file: %v", err)
+						if atomic.SwapUint32(&logRateLimited, 1) == 0 {
+							log.Printf("error opening log file: %v", err)
+						}
 					}
 					delete(srv.files, key)
 				}
