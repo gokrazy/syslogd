@@ -32,10 +32,10 @@ To search through old logs, grep through `*.log` for the last two days:
 ssh router7 grep rror '/perm/syslogd/scan2drive/*.log'
 ```
 
-…or `zgrep` through `*.log.gz` for older logs (not included in busybox
+…or `zstdgrep` through `*.log.gz` for older logs (not included in busybox
 unfortunately):
 
 ```shell
 sshfs router7:/perm/syslogd /mnt/syslogd
-zgrep rror /mnt/syslogd/scan2drive/*.log.gz
+zstdgrep rror /mnt/syslogd/scan2drive/*.log.zst
 ```

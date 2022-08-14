@@ -85,7 +85,7 @@ func TestCompressFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	gunzip := exec.Command("gunzip", "-c", fn+".gz")
+	gunzip := exec.Command("zstdcat", fn+".zst")
 	gunzip.Stdout = &buf
 	gunzip.Stderr = os.Stderr
 	if err := gunzip.Run(); err != nil {

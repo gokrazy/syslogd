@@ -4,7 +4,6 @@
 package main
 
 import (
-	"compress/gzip"
 	"flag"
 	"fmt"
 	"io"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/renameio/v2"
+	"github.com/klauspost/compress/zstd"
 	"gopkg.in/mcuadros/go-syslog.v2"
 )
 
@@ -120,16 +120,19 @@ func compressFile(fn string) error {
 		return err
 	}
 	defer src.Close()
-	dst, err := renameio.TempFile("", fn+".gz")
+	dst, err := renameio.TempFile("", fn+".zst")
 	if err != nil {
 		return err
 	}
 	defer dst.Cleanup()
-	gz := gzip.NewWriter(dst)
-	if _, err := io.Copy(gz, src); err != nil {
+	wr, err := zstd.NewWriter(dst)
+	if err != nil {
 		return err
 	}
-	if err := gz.Close(); err != nil {
+	if _, err := io.Copy(wr, src); err != nil {
+		return err
+	}
+	if err := wr.Close(); err != nil {
 		return err
 	}
 	if err := dst.CloseAtomicallyReplace(); err != nil {
@@ -147,7 +150,7 @@ func (s *server) compressOldLogs() error {
 		return err
 	}
 	for _, fn := range cold {
-		log.Printf("compressing %s to %s.gz", fn, fn)
+		log.Printf("compressing %s to %s.zst", fn, fn)
 		if err := compressFile(fn); err != nil {
 			log.Printf("compressing %s: %v", fn, err)
 		}
