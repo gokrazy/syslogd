@@ -1,6 +1,7 @@
 // Binary gokr-syslogd is a remote syslog server that writes all received
 // messages into files on local disk. Files that are no longer in use (no new
-// messages will be written to them) will be compressed and rotated.
+// messages will be written to them) will be compressed and deleted after 7
+// days.
 package main
 
 import (
@@ -70,6 +71,40 @@ func (s *server) openFile(key fileKey) (*os.File, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+func (s *server) toDeleteLogFileNames(now time.Time) ([]string, error) {
+	oldestToKeep := now.Add(-7 * 24 * time.Hour).Format(basenameFormat)
+
+	var toDeleteLogFileNames []string
+
+	hostDirs, err := os.ReadDir(s.dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, hostDir := range hostDirs {
+		dir := filepath.Join(s.dir, hostDir.Name())
+		logFiles, err := os.ReadDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		logFileNames := make([]string, 0, len(logFiles))
+		for _, logFile := range logFiles {
+			if !strings.HasSuffix(logFile.Name(), ".log") {
+				continue // skip already compressed file
+			}
+			logFileNames = append(logFileNames, filepath.Join(dir, logFile.Name()))
+		}
+		// Exclude all log files that might still be in use
+		toDelete := make([]string, 0, len(logFileNames))
+		for _, fn := range logFileNames {
+			if strings.Compare(filepath.Join(dir, oldestToKeep), fn) > 0 {
+				toDelete = append(toDelete, fn)
+			}
+		}
+		toDeleteLogFileNames = append(toDeleteLogFileNames, toDelete...)
+	}
+	return toDeleteLogFileNames, nil
 }
 
 func (s *server) coldLogFileNames(now time.Time) ([]string, error) {
@@ -158,9 +193,21 @@ func (s *server) compressOldLogs() error {
 	return nil
 }
 
-func (s *server) rotateOldLogs() error {
-	// TODO: if the files are too old by date, (or exceed a maximum amount of
-	// storage space), delete them
+func (s *server) deleteOldLogs() error {
+	toDelete, err := s.toDeleteLogFileNames(time.Now())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // no log files written yet
+		}
+		return err
+	}
+	for _, fn := range toDelete {
+		log.Printf("deleting log file older than 7 days: %s", fn)
+		// TODO: un-comment once verified correct:
+		// if err := os.Remove(fn); err != nil {
+		// 	log.Printf("deleting %s: %v", fn, err)
+		// }
+	}
 	return nil
 }
 
@@ -181,15 +228,15 @@ func gokrsyslogd() error {
 		files: make(map[fileKey]*openFile),
 	}
 
-	// Start periodic log compression/rotation in the background, not blocking
+	// Start periodic log compression/deletion in the background, not blocking
 	// server startup.
 	go func() {
 		for ; ; time.Sleep(1 * time.Hour) {
 			if err := srv.compressOldLogs(); err != nil {
 				log.Printf("compressing old logs: %v", err)
 			}
-			if err := srv.rotateOldLogs(); err != nil {
-				log.Printf("rotating old logs: %v", err)
+			if err := srv.deleteOldLogs(); err != nil {
+				log.Printf("deleting old logs: %v", err)
 			}
 		}
 	}()
