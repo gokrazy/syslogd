@@ -15,16 +15,16 @@ func TestToDeleteLogFileNames(t *testing.T) {
 		files: make(map[fileKey]*openFile),
 	}
 	for _, rel := range []string{
-		"dr/2022-08-10.log",
-		"dr/2022-08-11.log",
-		"dr/2022-08-12.log",
-		"dr/2022-08-13.log",
-		"dr/2022-08-14.log",
-		"dr/2022-08-15.log",
-		"dr/2022-08-16.log",
+		"dr/2022-08-10.log.zst",
+		"dr/2022-08-11.log.zst",
+		"dr/2022-08-12.log.zst",
+		"dr/2022-08-13.log.zst",
+		"dr/2022-08-14.log.zst",
+		"dr/2022-08-15.log.zst",
+		"dr/2022-08-16.log.zst",
 		"dr/2022-08-17.log",
 		"dr/2022-08-18.log",
-		"router7/2022-08-10.log",
+		"router7/2022-08-10.log.zst",
 		// intentional gap
 		"router7/2022-08-18.log",
 	} {
@@ -42,8 +42,8 @@ func TestToDeleteLogFileNames(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
-		filepath.Join(srv.dir, "dr", "2022-08-10.log"),
-		filepath.Join(srv.dir, "router7", "2022-08-10.log"),
+		filepath.Join(srv.dir, "dr", "2022-08-10.log.zst"),
+		filepath.Join(srv.dir, "router7", "2022-08-10.log.zst"),
 	}
 	if diff := cmp.Diff(want, cold); diff != "" {
 		t.Errorf("toDeleteLogFileNames(): unexpected diff (-want +got):\n%s", diff)

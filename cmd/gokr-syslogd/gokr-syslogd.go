@@ -90,7 +90,7 @@ func (s *server) toDeleteLogFileNames(now time.Time) ([]string, error) {
 		}
 		logFileNames := make([]string, 0, len(logFiles))
 		for _, logFile := range logFiles {
-			if !strings.HasSuffix(logFile.Name(), ".log") {
+			if !strings.HasSuffix(logFile.Name(), ".log.zst") {
 				continue // skip already compressed file
 			}
 			logFileNames = append(logFileNames, filepath.Join(dir, logFile.Name()))
