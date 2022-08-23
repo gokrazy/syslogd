@@ -203,10 +203,9 @@ func (s *server) deleteOldLogs() error {
 	}
 	for _, fn := range toDelete {
 		log.Printf("deleting log file older than 7 days: %s", fn)
-		// TODO: un-comment once verified correct:
-		// if err := os.Remove(fn); err != nil {
-		// 	log.Printf("deleting %s: %v", fn, err)
-		// }
+		if err := os.Remove(fn); err != nil {
+			log.Printf("deleting %s: %v", fn, err)
+		}
 	}
 	return nil
 }
