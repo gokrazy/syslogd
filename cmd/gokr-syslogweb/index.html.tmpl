@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<head>
+  <title>gokr-syslogweb</title>
+</head>
+<body>
+  <h1>gokr-syslogweb</h1>
+
+  {{ range $idx, $host := .Hosts }}
+  <h2>{{ $host }}</h2>
+  <form method="get" action="/grep/{{ $host }}">
+    <input type="text" name="q" placeholder="Go regexp pattern">
+    <select name="range">
+      <option value="todayyesterday" selected>today and yesterday</option>
+      <option value="all">all week</option>
+    </select>
+  <input type="submit" value="grep">
+  </form>
+  {{ end }}
