@@ -1,14 +1,32 @@
 # Installation
 
-See https://gokrazy.org/quickstart/ first.
+First, follow the [gokrazy installation instructions](https://gokrazy.org/quickstart/).
 
-Then, add `github.com/gokrazy/syslogd/cmd/gokr-syslogd` to your `gokr-packer`
-invocation.
+Then, add `github.com/gokrazy/syslogd/cmd/gokr-syslogd` to your gokrazy instance:
+
+```
+gok add github.com/gokrazy/syslogd/cmd/gokr-syslogd
+```
 
 Configure the listening address through a flag:
-```shell
-mkdir -p flags/github.com/gokrazy/syslogd/cmd/gokr-syslogd
-echo '-listen=10.0.0.1:514' > flags/github.com/gokrazy/syslogd/cmd/gokr-syslogd/flags.txt
+
+```json
+{
+    "Hostname": "router7",
+    "Packages": [
+        "github.com/gokrazy/fbstatus",
+        "github.com/gokrazy/hello",
+        "github.com/gokrazy/serial-busybox",
+        "github.com/gokrazy/breakglass"
+    ],
+    "PackageConfig": {
+        "github.com/gokrazy/syslogd/cmd/gokr-syslogd": {
+            "CommandLineFlags": [
+                "-listen=10.0.0.1:514"
+            ]
+        }
+    },
+}
 ```
 
 ## Usage Examples
