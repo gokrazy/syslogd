@@ -22,39 +22,6 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-type httpErr struct {
-	code int
-	err  error
-}
-
-func (h *httpErr) Error() string {
-	return h.err.Error()
-}
-
-func httpError(code int, err error) error {
-	return &httpErr{code, err}
-}
-
-func handleError(h func(http.ResponseWriter, *http.Request) error) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err := h(w, r)
-		if err == nil {
-			return
-		}
-		if err == context.Canceled {
-			return // client canceled the request
-		}
-		code := http.StatusInternalServerError
-		unwrapped := err
-		if he, ok := err.(*httpErr); ok {
-			code = he.code
-			unwrapped = he.err
-		}
-		log.Printf("%s: HTTP %d %s", r.URL.Path, code, unwrapped)
-		http.Error(w, unwrapped.Error(), code)
-	})
-}
-
 type errorHTTPHandler func(http.ResponseWriter, *http.Request) error
 
 func middleware(h errorHTTPHandler) http.Handler {
@@ -80,9 +47,9 @@ func syslogweb() error {
 			"/perm/syslogd",
 			"directory to which to serve syslogs from")
 
-		listenAddr = flag.String("listen",
+		listenAddrs = flag.String("listen",
 			"localhost:8514", // 514 is syslog, 80 is web
-			"[host]:port to listen on")
+			"comma-separated list of [host]:port pairs to listen on")
 	)
 
 	flag.Parse()
@@ -215,8 +182,9 @@ func syslogweb() error {
 		return err
 	}))
 
-	log.Printf("listening on %s", *listenAddr)
-	return http.ListenAndServe(*listenAddr, mux)
+	addrs := strings.Split(*listenAddrs, ",")
+	log.Printf("listening on %q", addrs)
+	return multiListen(context.Background(), mux, addrs)
 }
 
 func main() {
